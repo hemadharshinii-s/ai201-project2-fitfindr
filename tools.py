@@ -70,7 +70,44 @@ def search_listings(
     Before writing code, fill in the Tool 1 section of planning.md.
     """
     # Replace this with your implementation
-    return []
+    listings = load_listings()
+
+    keywords = description.lower().split()
+    scored_results = []
+
+    for listing in listings:
+        # Price filter
+        if max_price is not None and listing["price"] > max_price:
+            continue
+
+        # Size filter (case-insensitive)
+        if size is not None:
+            listing_size = listing["size"].upper()
+            requested_size = size.upper()
+
+            if requested_size not in listing_size:
+                continue
+
+        searchable_text = " ".join(
+            [
+                listing["title"],
+                listing["description"],
+                listing["category"],
+                " ".join(listing["style_tags"]),
+            ]
+        ).lower()
+
+        score = sum(
+            1 for keyword in keywords
+            if keyword in searchable_text
+        )
+
+        if score > 0:
+            scored_results.append((score, listing))
+
+    scored_results.sort(key=lambda x: x[0], reverse=True)
+
+    return [listing for _, listing in scored_results]
 
 
 # ── Tool 2: suggest_outfit ────────────────────────────────────────────────────
@@ -101,7 +138,69 @@ def suggest_outfit(new_item: dict, wardrobe: dict) -> str:
     Before writing code, fill in the Tool 2 section of planning.md.
     """
     # Replace this with your implementation
-    return ""
+    client = _get_groq_client()
+
+    wardrobe_items = wardrobe.get("items", [])
+
+    if not wardrobe_items:
+        prompt = f"""
+You are a fashion stylist.
+
+The user is considering buying this thrifted item:
+
+Title: {new_item['title']}
+Description: {new_item['description']}
+Category: {new_item['category']}
+Colors: {', '.join(new_item['colors'])}
+
+The user currently has an empty wardrobe.
+
+Give 1-2 general styling ideas describing what kinds of clothing,
+shoes, or accessories pair well with this item and what aesthetic it suits.
+
+Keep the response under 150 words.
+"""
+    else:
+        wardrobe_text = []
+
+        for item in wardrobe_items:
+            wardrobe_text.append(
+                f"- {item.get('name', 'Unknown item')} "
+                f"({item.get('category', 'unknown category')})"
+            )
+
+        prompt = f"""
+You are a fashion stylist.
+
+The user is considering buying this thrifted item:
+
+Title: {new_item['title']}
+Description: {new_item['description']}
+Category: {new_item['category']}
+Colors: {', '.join(new_item['colors'])}
+
+Their wardrobe contains:
+
+{chr(10).join(wardrobe_text)}
+
+Suggest 1-2 complete outfits that incorporate the thrifted item and
+explicitly use pieces from the wardrobe when appropriate.
+
+Keep the response under 150 words.
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=0.8,
+    )
+
+    return response.choices[0].message.content.strip()
 
 
 # ── Tool 3: create_fit_card ───────────────────────────────────────────────────
@@ -134,4 +233,42 @@ def create_fit_card(outfit: str, new_item: dict) -> str:
     Before writing code, fill in the Tool 3 section of planning.md.
     """
     # Replace this with your implementation
-    return ""
+    if not outfit or not outfit.strip():
+        return (
+            "Unable to generate fit card because outfit information is "
+            "missing. Try generating an outfit first."
+        )
+
+    client = _get_groq_client()
+
+    prompt = f"""
+Write a short Instagram/TikTok-style thrift fashion caption.
+
+Requirements:
+- 2-4 sentences.
+- Casual, authentic, and fun.
+- Mention the item title exactly once:
+  {new_item['title']}
+- Naturally mention the price (${new_item['price']})
+  exactly once.
+- Naturally mention the platform ({new_item['platform']})
+  exactly once.
+- Base the vibe on this outfit description:
+
+{outfit}
+
+Avoid sounding like an advertisement.
+"""
+
+    response = client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        messages=[
+            {
+                "role": "user",
+                "content": prompt,
+            }
+        ],
+        temperature=1.0,
+    )
+
+    return response.choices[0].message.content.strip()

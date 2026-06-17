@@ -26,7 +26,7 @@ Searches a dataset of thrift clothing listings and returns items that match a us
 
 **What it returns:**
 <!-- Describe the return value — what fields does a result contain? -->
-A list of matching listing dictionaries, each containing: id, title, description, category, style_tags, size, condition, price, colors, brand, and platform. Results are sorted by relevance (matching tags + description similarity + price closeness)
+A list of matching listing dictionaries, each containing: id, title, description, category, style_tags, size, condition, price, colors, brand, and platform. Results are sorted by relevance (keyword overlap with description; matching tags + description similarity + price closeness)
 
 **What happens if it fails or returns nothing:**
 <!-- What should the agent do if no listings match? -->
@@ -246,7 +246,7 @@ Write out what a full user interaction looks like from start to finish — tool 
 <!-- What does the agent do first? Which tool is called? With what input? -->
 User asks for vintage graphic tee under $30, size M. 
 
-Agent calls: search listings("vintage graphic tee", size="M", max_price=30)
+Agent calls: search_listings("vintage graphic tee", size="M", max_price=30)
 
 The agent returns the top result: "Faded Band Tee-$22"
 

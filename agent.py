@@ -19,7 +19,7 @@ Usage (once implemented):
 """
 
 from tools import search_listings, suggest_outfit, create_fit_card
-
+import re
 
 # ── session state ─────────────────────────────────────────────────────────────
 
@@ -46,6 +46,36 @@ def _new_session(query: str, wardrobe: dict) -> dict:
 
 
 # ── planning loop ─────────────────────────────────────────────────────────────
+
+def _parse_query(query: str) -> dict:
+    """
+    Simple rule-based parser (no LLM needed).
+    Extracts:
+    - size (e.g. M, S, L)
+    - max_price (e.g. $30)
+    - description (remaining text)
+    """
+
+    text = query.lower()
+
+    # --- size ---
+    size_match = re.search(r"\b(xs|s|m|l|xl|xxl)\b", text)
+    size = size_match.group(1).upper() if size_match else None
+
+    # --- price ---
+    price_match = re.search(r"\$?(\d+)", text)
+    max_price = float(price_match.group(1)) if price_match else None
+
+    # --- description (cleaned basic version) ---
+    description = re.sub(r"\$?\d+", "", text)
+    description = re.sub(r"\b(size|under|for|budget)\b", "", description)
+    description = description.strip()
+
+    return {
+        "description": description,
+        "size": size,
+        "max_price": max_price,
+    }
 
 def run_agent(query: str, wardrobe: dict) -> dict:
     """
@@ -94,7 +124,40 @@ def run_agent(query: str, wardrobe: dict) -> dict:
     """
     # TODO: implement the planning loop
     session = _new_session(query, wardrobe)
-    session["error"] = "Planning loop not yet implemented."
+
+    # Step 2: parse query
+    parsed = _parse_query(query)
+    session["parsed"] = parsed
+
+    # Step 3: search listings
+    results = search_listings(
+        description=parsed["description"],
+        size=parsed["size"],
+        max_price=parsed["max_price"],
+    )
+
+    session["search_results"] = results
+
+    # EARLY EXIT (critical test case)
+    if not results:
+        session["error"] = (
+            "No items matched your search. "
+            "Try broadening your description, size, or price range."
+        )
+        return session
+
+    # Step 4: select top item
+    selected = results[0]
+    session["selected_item"] = selected
+
+    # Step 5: outfit
+    outfit = suggest_outfit(selected, wardrobe)
+    session["outfit_suggestion"] = outfit
+
+    # Step 6: fit card
+    fit_card = create_fit_card(outfit, selected)
+    session["fit_card"] = fit_card
+
     return session
 
 
@@ -120,4 +183,9 @@ if __name__ == "__main__":
         query="designer ballgown size XXS under $5",
         wardrobe=get_example_wardrobe(),
     )
-    print(f"Error message: {session2['error']}")
+    if session2["error"]:
+        print(f"Error: {session2['error']}")
+    else:
+        print(f"Found: {session2['selected_item']['title']}")
+        print(f"\nOutfit: {session2['outfit_suggestion']}")
+        print(f"\nFit card: {session2['fit_card']}")
