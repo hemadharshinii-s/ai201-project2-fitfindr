@@ -47,7 +47,7 @@ Generates outfit recommendations by combining a newly selected thrift item with 
 
 **What it returns:**
 <!-- Describe the return value -->
-A string describing 1-3 outfit combinations. Each should include: how to style the new item, which wardrobe pieces it pairs with, and optional aeshetic/style description. 
+A string describing 1-3 outfit combinations. Each should include: how to style the new item, which wardrobe pieces it pairs with, and optional aesthetic/style description. 
 Example Output: Pair the graphic tee with baggy light-wash jeans and chunky sneakers for a relaxed streetwear look. Layer with an oversized hoodie for colder days.
 
 **What happens if it fails or returns nothing:**
@@ -103,8 +103,7 @@ The agent follows a strict sequential pipeline with conditional branching:
    - set session["selected_item"] = result[0]
 5. Call suggest_outfit(selected_item, wardrobe)
 6. If wardrobe is empty:
-   - set session["outfit"] = fallback style message
-   - continue (do not stop)
+   - suggest_outfit returns general styling advice instead of failing, and the agent continues normally
 7. Else:
    - set session["outfit"] = returned outfit string
 8. Call create_fit_card(session["outfit"], selected_item)
@@ -224,7 +223,7 @@ Expected Output:
 
 Verification:
 - I will run at least 3 test cases:
-   1. Normal flow (all tools succceed)
+   1. Normal flow (all tools succeed)
    2. No search results (early exit)
    3. Empty wardrobe (fallback outfit path)
 
@@ -258,7 +257,7 @@ The agent then calls suggest_outfit(selected_item, wardrobe) and returns "Pair w
 
 **Step 3:**
 <!-- Continue until the full interaction is complete -->
-Agent calls create_fit_card(outfit, selected ites) and returns "found this faded band tee for $22 and it's already my new favorite fit". 
+Agent calls create_fit_card(outfit, selected items) and returns "found this faded band tee for $22 and it's already my new favorite fit". 
 
 **Final output to user:**
 <!-- What does the user actually see at the end? -->
